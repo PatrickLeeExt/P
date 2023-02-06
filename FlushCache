@@ -1,0 +1,24 @@
+#!/bin/bash
+# 
+# ChangeLog:
+# 20230206, v1, by Patrick Lee
+# 如果記憶體使用率小於等於 20%, 將快取寫回硬碟並清空快取, 再恢復 drop_caches 值, 並寫到 log 裡紀錄
+# 如果記憶體使用率大於 20%, 不動作, 只寫到 log 裡紀錄
+# ---
+
+SCRIPT_NAME=$0
+DATE=$(date +"%Y%m%d")
+TIME=$(date +"%H%M%S")
+NOW=$(date +"%Y%m%d_%H%M%S")
+HOSTNAME=$(hostname)
+MEM_AVAIL=$(grep MemAvailable /proc/meminfo | awk '{print $2}')
+MEM_TOTAL=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+PERCENTAGE=$(($MEM_AVAIL * 100 / $MEM_TOTAL))
+
+if [ "$PERCENTAGE" -le 20 ]; then
+	sync; sync; sync && echo 3 > /proc/sys/vm/drop_caches
+	echo "[$NOW] Flush cache at $DATE $TIME, Use rate is $PERCENTAGE%." | tee -a /var/log/"$SCRIPT_NAME""$HOSTNAME""$DATE".log
+	echo 0 > /proc/sys/vm/drop_caches
+else
+	echo "[$NOW] Do NOT flush cache, mem avaliable percentage is $PERCENTAGE%." | tee -a /var/log/"$SCRIPT_NAME""$HOSTNAME""$DATE".log
+fi
